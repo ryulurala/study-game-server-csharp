@@ -8,7 +8,8 @@
 
 1. [C# 개념 정리](/doc/concept-csharp.md)
 2. [서버 개요](/doc/outline-server.md)
-3. [환경 설정](doc/Settings.md)
+3. [환경 설정(CLI)](doc/settings.md)
 4. [멀티쓰레드 개론](/doc/outline-multi-threads.md)
+5. [쓰레드 생성](/doc/create-thread.md)
 
 ---
