@@ -266,9 +266,7 @@ namespace FuncExample
 
 - 다른 컴퓨터에서 연결이 가능하도록 대기 상태로 상시 실행 중인 프로그램
 
-### 서버 종류
-
-#### Web Server vs Game Server
+### Web Server vs Game Server
 
 |           Web Server            |          Game Server           |
 | :-----------------------------: | :----------------------------: |
@@ -276,7 +274,7 @@ namespace FuncExample
 |       실시간 상호 작용 X        |       실시간 상호 작용 O       |
 | 질의(Query) / 대답(Answer) 형태 | 요청(Request) / 응답(Response) |
 
-#### 1. Web Server(aka. HTTP Server)
+### Web Server(aka. HTTP Server)
 
 - 질의(Query) / 대답(Answer) 형태
 - 실시간 상호 작용 X
@@ -290,7 +288,7 @@ namespace FuncExample
   - `PHP`
   - ...
 
-#### 2. Game Server(aka. TCP Server, Binary Server, Stateful Server ...)
+### Game Server(aka. TCP Server, Binary Server, Stateful Server ...)
 
 - 요청(Request) / 응답(Response) 형태
 - 실시간 상호 작용 O
