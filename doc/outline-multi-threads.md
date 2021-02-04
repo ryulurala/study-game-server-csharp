@@ -1,9 +1,8 @@
 ---
 title: "멀티쓰레드 개론"
-excerpt: "Process vs Thread"
 category: Game-Server
 tags: [process, thread, multi-thread, context-switching, thread-safe]
-toc: true
+date: "2021-02-04"
 ---
 
 ## 멀티쓰레드 개론

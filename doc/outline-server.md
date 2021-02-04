@@ -1,9 +1,8 @@
 ---
 title: "Server 개요"
-excerpt: "Server Reference"
 category: Game-Server
 tags: [server, game-server, web-server]
-toc: true
+date: "2021-02-04"
 ---
 
 ## 서버 개요

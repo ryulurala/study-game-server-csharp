@@ -1,6 +1,5 @@
 ---
 title: "MMO C# Game-Server"
-excerpt: "MMO C# Game-Server"
 category: Game-Server
 tags:
   [
@@ -16,7 +15,7 @@ tags:
     web-server,
     .net-core,
   ]
-toc: true
+date: "2021-02-04"
 ---
 
 ## 개념 정리(시작하기 앞서)

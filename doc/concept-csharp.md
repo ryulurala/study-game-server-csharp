@@ -1,9 +1,8 @@
 ---
 title: "C# 개념 정리"
-excerpt: "C# Reference"
 category: Game-Server
 tags: [c#, blocking, non-blocking, call-back, event, action, func]
-toc: true
+date: "2021-02-04"
 ---
 
 ## 개념 정리(시작하기 앞서)

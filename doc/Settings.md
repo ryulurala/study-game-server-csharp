@@ -1,9 +1,8 @@
 ---
 title: "환경 설정(CLI)"
-excerpt: "Environment Settings"
 category: Game-Server
 tags: [game-server, .net-core]
-toc: true
+date: "2021-02-04"
 ---
 
 ## (CLI)환경 설정
