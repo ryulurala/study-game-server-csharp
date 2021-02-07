@@ -11,5 +11,6 @@
 3. [환경 설정(CLI)](doc/settings.md)
 4. [멀티쓰레드 개론](/doc/outline-multi-threads.md)
 5. [쓰레드 생성](/doc/create-thread.md)
+6. [컴파일러 최적화](doc/code-optimization.md)
 
 ---
