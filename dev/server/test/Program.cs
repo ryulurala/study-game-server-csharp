@@ -6,44 +6,29 @@ namespace test
 {
     class Program
     {
-        static int x = 0;
-        static int y = 0;
-        static int r1 = 0;
-        static int r2 = 0;
-
+        static int number = 0;
         static void Thread_1()
         {
-            y = 1;    // Store y
-
-            Thread.MemoryBarrier();
-
-            r1 = x;     // load x
+            for (int i = 0; i < 100000; i++)
+                Interlocked.Increment(ref number);
         }
 
         static void Thread_2()
         {
-            x = 1;    // Store x
-            r2 = y;     // load y
+            for (int i = 0; i < 100000; i++)
+                Interlocked.Decrement(ref number);
         }
 
         static void Main(string[] args)
         {
-            int count = 0;
-            while (true)
-            {
-                count++;
-                x = y = r1 = r2 = 0;
-                Task t1 = new Task(Thread_1);
-                Task t2 = new Task(Thread_2);
+            Task task1 = new Task(Thread_1);
+            Task task2 = new Task(Thread_2);
+            task1.Start();
+            task2.Start();
 
-                t1.Start();
-                t2.Start();
+            Task.WaitAll(task1, task2);
 
-                Task.WaitAll(t1, t2);
-
-                if (r1 == 0 && r2 == 0) break;
-            }
-            Console.WriteLine($"{count}번만에 break");
+            Console.WriteLine($"number={number}");
         }
     }
 }
