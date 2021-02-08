@@ -6,33 +6,44 @@ namespace test
 {
     class Program
     {
+        static int x = 0;
+        static int y = 0;
+        static int r1 = 0;
+        static int r2 = 0;
+
+        static void Thread_1()
+        {
+            y = 1;    // Store y
+
+            Thread.MemoryBarrier();
+
+            r1 = x;     // load x
+        }
+
+        static void Thread_2()
+        {
+            x = 1;    // Store x
+            r2 = y;     // load y
+        }
+
         static void Main(string[] args)
         {
-            int[,] arr = new int[10000, 10000]; // 2차원 배열
+            int count = 0;
+            while (true)
             {
-                long start = DateTime.Now.Ticks;
-                for (int y = 0; y < 10000; y++)
-                {
-                    for (int x = 0; x < 10000; x++)
-                    {
-                        arr[y, x] = 1;
-                    }
-                }
-                long end = DateTime.Now.Ticks;
-                Console.WriteLine($"(y, x) 걸린 시간${end - start}");   // 3297570
+                count++;
+                x = y = r1 = r2 = 0;
+                Task t1 = new Task(Thread_1);
+                Task t2 = new Task(Thread_2);
+
+                t1.Start();
+                t2.Start();
+
+                Task.WaitAll(t1, t2);
+
+                if (r1 == 0 && r2 == 0) break;
             }
-            {
-                long start = DateTime.Now.Ticks;
-                for (int y = 0; y < 10000; y++)
-                {
-                    for (int x = 0; x < 10000; x++)
-                    {
-                        arr[x, y] = 1;
-                    }
-                }
-                long end = DateTime.Now.Ticks;
-                Console.WriteLine($"(y, x) 걸린 시간${end - start}");   // 4962996
-            }
+            Console.WriteLine($"{count}번만에 break");
         }
     }
 }
