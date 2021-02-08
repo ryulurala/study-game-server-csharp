@@ -12,5 +12,8 @@
 4. [멀티쓰레드 개론](/doc/outline-multi-threads.md)
 5. [쓰레드 생성](/doc/create-thread.md)
 6. [컴파일러 최적화](doc/code-optimization.md)
+7. [캐시 이론](/doc/outline-cache.md)
+8. [메모리 베리어](/doc/memory-barrier.md)
+9. [Interlocked](/doc/interlocked.md)
 
 ---
