@@ -1,11 +1,11 @@
 ---
-title: "코드 최적화 by 컴파일러"
+title: "코드 최적화 by 컴파일러(S/W)"
 category: Game-Server
 tags: [c#, code-optimization, debug, release]
 date: "2021-02-07"
 ---
 
-## 컴파일러 최적화
+## 컴파일러(S/W) 최적화
 
 ### Debug vs Release
 
@@ -79,11 +79,10 @@ if(!_stop)
 
 - `volatile` 키워드 사용
 
+  > 가시성 확보  
   > `static 타입 변수명;` => `volatile static 타입 변수명;`  
   > `volatile`은 `휘발성 데이터`로 코드 작성한 그대로 쓰게 한다.  
   > `C#`과 `C++`에서의 `volatile` 키워드는 다르다.  
   > `C++`에서의 `volatile` 키워드는 최신 값을 가져오는 역할
-
-- Lock, Memory Barrier, ...
 
 ---

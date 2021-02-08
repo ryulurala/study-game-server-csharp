@@ -617,8 +617,6 @@ if(!_stop)
   > `C#`과 `C++`에서의 `volatile` 키워드는 다르다.  
   > `C++`에서의 `volatile` 키워드는 최신 값을 가져오는 역할
 
-- Lock, Memory Barrier, ...
-
 ---
 
 ## 캐시 이론
