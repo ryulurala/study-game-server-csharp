@@ -17,5 +17,6 @@
 9. [Interlocked](/doc/interlocked.md)
 10. [lock 기초](/doc/lock-outline.md)
 11. [DeadLock](/doc/deadlock.md)
+12. [lock 구현 이론](/doc/lock-implemented.md)
 
 ---
