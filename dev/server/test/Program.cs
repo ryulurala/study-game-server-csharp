@@ -6,17 +6,47 @@ namespace test
 {
     class Program
     {
-        static int number = 0;
-        static void Thread_1()
+        class SessionManager
         {
-            for (int i = 0; i < 100000; i++)
-                Interlocked.Increment(ref number);
+            static object _lock = new object();
+            public static void TestSession()
+            {
+                lock (_lock) { }
+            }
+            public static void Test()
+            {
+                lock (_lock) { UserManager.TestUser(); }
+            }
         }
 
+        class UserManager
+        {
+            static object _lock = new object();
+
+            public static void TestUser()
+            {
+                lock (_lock) { }
+            }
+            public static void Test()
+            {
+                lock (_lock) { SessionManager.TestSession(); }
+            }
+        }
+
+
+        static void Thread_1()
+        {
+            for (int i = 0; i < 10000; i++)
+            {
+                SessionManager.Test();
+            }
+        }
         static void Thread_2()
         {
-            for (int i = 0; i < 100000; i++)
-                Interlocked.Decrement(ref number);
+            for (int i = 0; i < 10000; i++)
+            {
+                UserManager.Test();
+            }
         }
 
         static void Main(string[] args)
@@ -24,11 +54,14 @@ namespace test
             Task task1 = new Task(Thread_1);
             Task task2 = new Task(Thread_2);
             task1.Start();
+
+            Thread.Sleep(100);
+
             task2.Start();
 
             Task.WaitAll(task1, task2);
 
-            Console.WriteLine($"number={number}");
+            Console.WriteLine("종료!");
         }
     }
 }
