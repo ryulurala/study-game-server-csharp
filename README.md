@@ -15,5 +15,7 @@
 7. [캐시 이론](/doc/outline-cache.md)
 8. [메모리 베리어](/doc/memory-barrier.md)
 9. [Interlocked](/doc/interlocked.md)
+10. [lock 기초](/doc/lock-outline.md)
+11. [DeadLock](/doc/deadlock.md)
 
 ---
