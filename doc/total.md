@@ -1081,3 +1081,201 @@ static void Main(string[] args)
    - 관리자에게 비용이 들어감.
 
 ---
+
+## SpinLock
+
+- 무작정 기다리기
+
+### SpinLock 예제
+
+- 잘못된 방법
+
+  > 동시에 들어갈 수 있는 여지가 있다.
+
+  ```cs
+  class SpinLock
+  {
+      volatile int _locked = 0;
+
+      public void Acquire()
+      {
+          while (_locked) ;   // 잠금이 풀리기를 기다림
+          _locked = true;  // 내가 잠금
+      }
+      public void Release()
+      {
+          _locked = 0;    // 잠금 해제
+      }
+  }
+  ```
+
+- 올바른 방법
+
+  > Atomic(원자적)하게 실행한다.
+  > `CaS`(`Compare and Swap`) 사용.
+
+  ```cs
+  class SpinLock
+  {
+      volatile int _locked = 0;
+
+      public void Acquire()
+      {
+          // CaS: Compare-and-Swap
+          while (true)
+          {
+              int expected = 0; // 예상 값
+              int desired = 1;  // 원하는 값
+              if (Interlocked.CompareExchange(ref _locked, desired, expected) == expected)
+                  break;  // 예상값과 맞을 경우 원하는 값으로 넣어주고 break
+          }
+
+      }
+      public void Release()
+      {
+          _locked = 0;    // 잠금 해제
+      }
+  }
+  ```
+
+---
+
+## Context Switching
+
+- 무작정 기다리지 않고 "내 일을 하다가 다시 올게".
+
+### Context Switching 절차
+
+1. Sleep()을 실행하면 CPU 점유권을 포기하고 커널 모드로 들어가 OS에게 실행 권한을 넘겨준다.
+2. OS가 그 다음 실행할 쓰레드를 결정 : 오래 기다린 순서 + 중요도(Initialized)
+3. Context-Switching(by Register)
+   1. `Register`에 들어있는 `State`를 `RAM`에 저장
+   2. `Switching`
+   3. `Register`에 들어올 값 복원
+4. 복원 후, 다시 이어서 실행
+
+- 모든 프로세스는 CPU Time Slice를 간절하기 받기를 원하는 상태이다.
+- 실제로 남는 쓰레드가 거의 없다.
+  > Why. 모든 Thread가 Sleep 상태가 아닌 이상, 실제 프로세스 개수를 생각하자!
+
+### Context Switching API
+
+|        `Thread.Sleep(N)`         |                   `Thread.Sleep(0)`                    |                   `Thread.Yield()`                   |
+| :------------------------------: | :----------------------------------------------------: | :--------------------------------------------------: |
+|           무조건 휴식            |                      조건부 양보                       |                     관대한 양보                      |
+| 실제로는 `OS`에게 N ms 휴식 요청 | 우선순위 높은 `Thread`에게 양보, 없으면 다시 본인 실행 | 실행 가능한 `Thread`에게 양보, 없으면 남은 시간 소진 |
+
+### Context-Switching 예제
+
+```cs
+public void Acquire()
+{
+    // CaS: Compare-and-Swap
+    while (true)
+    {
+        int expected = 0;
+        int desired = 1;
+        if (Interlocked.CompareExchange(ref _locked, desired, expected) == expected)
+            break;
+    }
+
+    // Context-Switching(3개 중 하나 실행)
+    Thread.Sleep(1);    // 무조건 휴식, (N)ms 쉬게 함.
+    Thread.Sleep(0);    // 조건부 양보, 나보다 우선순위가 높은 애들한테는 양보 or 아니면 다시 실행
+    Thread.Yield();     // 관대한 양보, 지금 실행 가능한 Thread가 있으면 실행 or 없으면 다시 실행
+}
+```
+
+---
+
+## `AutoResetEvent`
+
+- 관리자(`Kernel`)가 중재
+- 일종의 `Kernel`단에서의 `Flag(bool)` 개념이다.
+- 속도가 느리다. Why. `Kernel`이 중재
+
+- `AutoResetEvent` vs `ManualResetEvent`
+
+  > 쓰레드를 받아들일 문을 닫는 행위: 자동(Auto) vs 수동(Manual)
+
+  |    `AutoResetEvent`     |         `ManualResetEvent`         |
+  | :---------------------: | :--------------------------------: |
+  |     `Kernel`이 중재     |          `Kernel`이 중재           |
+  | `.WaitOne()` / `.Set()` | `.WaitOne()`+`.Reset()` / `.Set()` |
+  |       버그 발생 X       |            버그 발생 O             |
+
+### AutoResetEvent 예제
+
+```cs
+class Lock
+{
+    // 관리자가 중재.
+    // true: 들어올 수 있음, false: 못 들어옴
+    AutoResetEvent _available = new AutoResetEvent(true);
+    public void Acquire()
+    {
+        _available.WaitOne();   // 입장 시도 후 문을 닫음
+    }
+    public void Release()
+    {
+        _available.Set();   // 문을 열음, state = true;
+    }
+}
+```
+
+### ManualResetEvent 예제
+
+```cs
+class Lock
+{
+    // true: 들어올 수 있음, false: 못 들어옴
+    // 관리자가 중재.
+    ManualResetEvent _available = new ManualResetEvent(true);
+    public void Acquire()
+    {
+        // AutoResetEvent는 두 절을 묶어서 사용
+        // ManualResetEvent는 나뉘어서 실행하므로 문제가 발생할 수 있다.
+        _available.WaitOne();   // 입장 시도
+        _available.Reset();     // 입장 후 문을 닫음
+    }
+    public void Release()
+    {
+        _available.Set();   // 문을 열음.
+    }
+}
+```
+
+## `Mutex`
+
+- Kernel 동기화 객체
+- `ResetEvent`보다 많은 `State`(`Thread Id`, `Lock count`, ... 등등)를 담고 있다
+- `ResetEvent` 보다 조금 더 느리다.
+- Mutex 객체를 생성하여 이용한다.
+
+### Mutex 예제
+
+```cs
+static int _num = 0;
+static Mutex _lock = new Mutex();
+
+static void Thread_1()
+{
+    for (int i = 0; i < 10000; i++)
+    {
+        _lock.WaitOne();    // 입장 시도 및 잠그기
+        _num++;
+        _lock.ReleaseMutex();   // 잠금 해제
+    }
+}
+static void Thread_2()
+{
+    for (int i = 0; i < 10000; i++)
+    {
+        _lock.WaitOne();    // 입장 시도 및 잠그기
+        _num--;
+        _lock.ReleaseMutex();   // 잠금 해제
+    }
+}
+```
+
+---
