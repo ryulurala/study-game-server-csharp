@@ -19,6 +19,10 @@ namespace test
                     break;
             }
 
+            // Context-Switching
+            Thread.Sleep(1);    // 무조건 휴식, (N)ms 쉬게 함.
+            Thread.Sleep(0);    // 조건부 양보, 나보다 우선순위가 높은 애들한테는 양보 or 아니면 다시 실행
+            Thread.Yield();     // 관대한 양보, 지금 실행 가능한 Thread가 있으면 실행 or 없으면 다시 실행
         }
         public void Release()
         {
