@@ -18,5 +18,8 @@
 10. [lock 기초](/doc/lock-outline.md)
 11. [DeadLock](/doc/deadlock.md)
 12. [lock 구현 이론](/doc/lock-implemented.md)
+13. [SpinLock](/doc/spinlock.md)
+14. [Context Switching](/doc/context-switching.md)
+15. [AutoResetEvent & mutex](/doc/reset-event-and-mutex.md)
 
 ---
