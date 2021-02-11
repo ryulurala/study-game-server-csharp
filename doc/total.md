@@ -1251,6 +1251,7 @@ class Lock
 - `ResetEvent`보다 많은 `State`(`Thread Id`, `Lock count`, ... 등등)를 담고 있다
 - `ResetEvent` 보다 조금 더 느리다.
 - Mutex 객체를 생성하여 이용한다.
+- Kernel 단에서 동기화하므로 `Process`(프로그램)끼리 동기화가 가능하다.
 
 ### Mutex 예제
 
