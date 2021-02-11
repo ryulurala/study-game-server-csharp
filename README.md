@@ -21,5 +21,6 @@
 13. [SpinLock](/doc/spinlock.md)
 14. [Context Switching](/doc/context-switching.md)
 15. [AutoResetEvent & mutex](/doc/reset-event-and-mutex.md)
+16. [ReaderWriterLock](/doc/reader-writer-lock.md)
 
 ---
