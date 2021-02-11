@@ -16,7 +16,7 @@ date: "2021-02-10"
   > 동시에 들어갈 수 있는 여지가 있다.
 
   ```cs
-  class SpinLock
+  class MySpinLock
   {
       volatile int _locked = 0;
 
@@ -38,7 +38,7 @@ date: "2021-02-10"
   > `CaS`(`Compare and Swap`) 사용.
 
   ```cs
-  class SpinLock
+  class MySpinLock
   {
       volatile int _locked = 0;
 
@@ -60,5 +60,26 @@ date: "2021-02-10"
       }
   }
   ```
+
+### SpinLock API
+
+- SpinLock API를 사용할 경우 실제로 양보를 하기도 한다.
+
+```cs
+// SpinLock API는 실제로 답이 없을 경우 양보를 한다.
+static SpinLock spinLock = new SpinLock();
+static void Main(string[] args)
+{
+    bool token = false;
+    try
+    {
+        spinLock.Enter(ref token);
+    }
+    finally
+    {
+        if (token) spinLock.Exit();
+    }
+}
+```
 
 ---

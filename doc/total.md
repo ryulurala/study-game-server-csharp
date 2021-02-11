@@ -1138,6 +1138,27 @@ static void Main(string[] args)
   }
   ```
 
+### SpinLock API
+
+- SpinLock API를 사용할 경우 실제로 양보를 하기도 한다.
+
+```cs
+// SpinLock API는 실제로 답이 없을 경우 양보를 한다.
+static SpinLock spinLock = new SpinLock();
+static void Main(string[] args)
+{
+    bool token = false;
+    try
+    {
+        spinLock.Enter(ref token);
+    }
+    finally
+    {
+        if (token) spinLock.Exit();
+    }
+}
+```
+
 ---
 
 ## Context Switching
