@@ -7,7 +7,7 @@ date: "2021-02-13"
 
 ## Thread Local Storage
 
-- `Thread`의 고유 공간
+- `Thread`의 고유한 전역 변수
   > 한 번 Lock을 잡을 때, 일감을 뭉텅이로 가져갈 수 있다.  
   > 공유 자원에 대해 `Thread`들의 접근하는 횟수를 줄일 수 있다.
 
