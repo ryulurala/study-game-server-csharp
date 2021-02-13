@@ -17,36 +17,6 @@ static void WhoAmI()
 }
 - ThreadName을 Thread들이 모두 공유해서 사용한다.
 - 한 쓰레드가 이름을 출력할 때 ThreadName을 바꿔서 겹치는 버그가 발생한다
-
-ex 2) TLS(Yes)
-static ThreadLocal<string> ThreadName = new ThreadLocal<string>();
-static void WhoAmI()
-{
-  // 자신의 영역의 이름을 바꾼다
-  ThreadName.Value = $"My Name is {Thread.CurrentThread.ManagedThreadId}";
-  Thread.Sleep(1000);     // 혹시나 다른 쓰레드가 바꿔도 바뀌는지
-  System.Console.WriteLine(ThreadName.Value);
-}
-
-- ThreadName을 각 Thread들의 고유한 값으로 가지고 있다.(전역 변수여도)
-- 하지만 ThreadPool의 Min과 Max의 값을 고정시키면 Thread Pooling으로 인해 동일한 쓰레드가 Repeat하는 경우가 생긴다.
-ex 3) TLS(Yes), repeat환경 테스트
-static ThreadLocal<string> ThreadName = new ThreadLocal<string>(()=>{
-  return $"My name is {Thread.CurrentThread.ManagedThreadId}";
-});
-static void WhoAmI()
-{
-  bool repeat = ThreadName.IsValueCreated;    // true: 이미 한 번 만들었다, false: 만든적 없다
-  if(repeat){ // 반복됨 ture: 이미 만들었었다. }
-  else{ // 한 번도 만들지 않았다, value가 null일 때, 람다 실행}
-}
-
-- Parallel.Invoke(WhoAmI, WhoAmI, WhoAmI, WhoAmI, WhoAmI, WhoAmI, WhoAmI); :
-매개 변수 넣는 만큼 ThreadPool에서 Task를 꺼내서 사용한다.
-
-- ThreadName.Dispose(); : 람다식을 만든 것을 날린다.
-
-------------------------------------------------------------------------------------------------------------------------
 [네트워크 기초 이론]
 
 * 통신 구조 vs 택배 구조

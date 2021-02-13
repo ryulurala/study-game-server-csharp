@@ -4,37 +4,32 @@ using System.Threading.Tasks;
 
 namespace test
 {
-    class Reward { }
-    class RewardManager
-    {
-        ReaderWriterLockSlim rwLock = new ReaderWriterLockSlim();
-
-        Reward getRewardById(int id)    // 99.9999 %
-        {
-            rwLock.EnterReadLock();
-
-            // Reward 읽기
-            Reward reward = new Reward();
-
-            rwLock.ExitReadLock();
-
-            return reward;
-        }
-
-        void addReward()    // 0.0001 %
-        {
-            rwLock.EnterWriteLock();
-
-            // Reward 추가
-
-            rwLock.ExitWriteLock();
-        }
-    }
     class Program
     {
+        // 자신만의 공간
+        static ThreadLocal<string> ThreadName = new ThreadLocal<string>(
+            () => $"My Name is {Thread.CurrentThread.ManagedThreadId}"
+            );  // Value를 지정
+
+        static void WhoAmI()
+        {
+            if (ThreadName.IsValueCreated)  // 이미 Name이 있으면
+                Console.WriteLine($"{ThreadName.Value}(repeat)");
+            else
+                Console.WriteLine($"{ThreadName.Value}");
+        }
+
         static void Main(string[] args)
         {
+            // 개수 설정
+            ThreadPool.SetMinThreads(1, 1);
+            ThreadPool.SetMaxThreads(3, 3);
 
+            // 병렬 처리: ThreadPool에서 꺼내 쓴다.
+            Parallel.Invoke(
+                WhoAmI, WhoAmI, WhoAmI,
+                WhoAmI, WhoAmI, WhoAmI
+                );
         }
     }
 }
