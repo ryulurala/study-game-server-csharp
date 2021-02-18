@@ -1,12 +1,13 @@
 using System;
 using System.Collections.Generic;
+using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
 
 namespace core
 {
-    public class Session
+    abstract public class Session
     {
         Socket _socket;     // 클라이언트 소켓(대리자)
         int _disconnected = 0;
@@ -14,8 +15,12 @@ namespace core
         SocketAsyncEventArgs _sendArgs = new SocketAsyncEventArgs();    // 재사용
         SocketAsyncEventArgs _recvArgs = new SocketAsyncEventArgs();    // 재사용
         List<ArraySegment<byte>> _pendingList = new List<ArraySegment<byte>>();
-
         object _lock = new object();
+
+        public abstract void OnConnected(EndPoint endPoint);
+        public abstract void OnRecv(ArraySegment<byte> buffer);
+        public abstract void OnSend(int numOfBytes);
+        public abstract void OnDisconnected(EndPoint endPoint);
 
         public void init(Socket socket)
         {
@@ -28,7 +33,6 @@ namespace core
 
             ResgisterRecv();
         }
-
         public void Send(byte[] sendBuff)
         {
             lock (_lock)
@@ -39,10 +43,11 @@ namespace core
                 if (_pendingList.Count == 0) RegisterSend();
             }
         }
-
         public void Disconnect()
         {
             if (Interlocked.Exchange(ref _disconnected, 1) == 1) return;
+
+            OnDisconnected(_socket.RemoteEndPoint);
 
             // 손님 보내기: Close()
             _socket.Shutdown(SocketShutdown.Both);   // 신뢰성(TCP)
@@ -75,8 +80,8 @@ namespace core
                     {
                         _sendArgs.BufferList = null;
                         _pendingList.Clear();
+                        OnSend(_sendArgs.BytesTransferred);
 
-                        Console.WriteLine($"Transferred Byte: {_sendArgs.BytesTransferred}\n");
 
                         if (_sendQueue.Count > 0) RegisterSend();
                     }
@@ -100,7 +105,6 @@ namespace core
                 OnRecvCompleted(null, _recvArgs);
             }
         }
-
         void OnRecvCompleted(object sender, SocketAsyncEventArgs args)
         {
             if (args.BytesTransferred > 0 && args.SocketError == SocketError.Success)
@@ -108,8 +112,8 @@ namespace core
                 // 성공적으로 Data를 가져옴
                 try
                 {
-                    string recvData = Encoding.UTF8.GetString(args.Buffer, args.Offset, args.BytesTransferred);
-                    Console.WriteLine($"[From Client]\n {recvData}");
+                    OnRecv(new ArraySegment<byte>(args.Buffer, args.Offset, args.BytesTransferred));
+
 
                     ResgisterRecv();
                 }

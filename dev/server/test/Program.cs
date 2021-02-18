@@ -7,30 +7,39 @@ using core;
 
 namespace test
 {
+    class GameSession : Session
+    {
+        public override void OnConnected(EndPoint endPoint)
+        {
+            Console.WriteLine($"Onconnected: {endPoint}");
+
+            byte[] sendBuff = Encoding.UTF8.GetBytes("Welcome to MMORPG Server !");
+            Send(sendBuff);
+
+            Thread.Sleep(1000);
+
+            Disconnect();
+        }
+
+        public override void OnDisconnected(EndPoint endPoint)
+        {
+            Console.WriteLine($"OnDisconnected: {endPoint}");
+        }
+
+        public override void OnRecv(ArraySegment<byte> buffer)
+        {
+            string recvData = Encoding.UTF8.GetString(buffer.Array, buffer.Offset, buffer.Count);
+            Console.WriteLine($"[From Client]\n {recvData}");
+        }
+
+        public override void OnSend(int numOfBytes)
+        {
+            Console.WriteLine($"Transferred Byte: {numOfBytes}\n");
+        }
+    }
     class Program
     {
         static Listener _listener = new Listener();
-        static void OnAcceptHandler(Socket clientSocket)
-        {
-            try
-            {
-                // 메시지 받기: Receive()
-                Session session = new Session();
-                session.init(clientSocket);
-
-                // 메시지 보내기: Send()
-                byte[] sendBuff = Encoding.UTF8.GetBytes("Welcome to MMORPG Server !");
-                clientSocket.Send(sendBuff);    // Blocking: 다음 단계 불가
-
-                Thread.Sleep(1000);
-
-                session.Disconnect();
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine(e.ToString());
-            }
-        }
         static void Main(string[] args)
         {
             // IP 주소
@@ -41,7 +50,7 @@ namespace test
             // Port 번호
             IPEndPoint endPoint = new IPEndPoint(ipAddr, 7777);
 
-            _listener.init(endPoint, OnAcceptHandler);
+            _listener.init(endPoint, () => new GameSession());
             Console.WriteLine("Listening...");
 
             while (true) ;
