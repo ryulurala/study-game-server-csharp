@@ -2,6 +2,7 @@
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
+using System.Threading;
 using core;
 
 namespace test
@@ -14,18 +15,16 @@ namespace test
             try
             {
                 // 메시지 받기: Receive()
-                byte[] recvBuff = new byte[1024];
-                int recvBytes = clientSocket.Receive(recvBuff);
-                string recvData = Encoding.UTF8.GetString(recvBuff, 0, recvBytes);
-                Console.WriteLine($"[From Client] {recvData}");
+                Session session = new Session();
+                session.init(clientSocket);
 
                 // 메시지 보내기: Send()
                 byte[] sendBuff = Encoding.UTF8.GetBytes("Welcome to MMORPG Server !");
                 clientSocket.Send(sendBuff);    // Blocking: 다음 단계 불가
 
-                // 손님 보내기: Close()
-                clientSocket.Shutdown(SocketShutdown.Both);   // 신뢰성(TCP)
-                clientSocket.Close();
+                Thread.Sleep(1000);
+
+                session.Disconnect();
             }
             catch (Exception e)
             {

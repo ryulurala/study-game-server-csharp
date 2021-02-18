@@ -30,8 +30,11 @@ namespace dummy_console
                     Console.WriteLine($"Connected to {socket.RemoteEndPoint.ToString()}");
 
                     // 메시지 보내기: Send()
-                    byte[] sendBuff = Encoding.UTF8.GetBytes("Hello MMOServer !");
-                    int sendBytes = socket.Send(sendBuff);
+                    for (int i = 0; i < 5; i++)
+                    {
+                        byte[] sendBuff = Encoding.UTF8.GetBytes($"Hello MMOServer! {i}\n");
+                        int sendBytes = socket.Send(sendBuff);
+                    }
 
                     // 메시지 받기: Receive()
                     byte[] recvBuff = new byte[1024];
