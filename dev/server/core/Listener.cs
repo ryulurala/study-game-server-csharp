@@ -10,7 +10,7 @@ namespace core
         Socket _listenSocket;
         Func<Session> _sessionFactory;
 
-        public void init(IPEndPoint endPoint, Func<Session> sessionFactory)
+        public void Listen(IPEndPoint endPoint, Func<Session> sessionFactory)
         {
             _listenSocket = new Socket(endPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
             _sessionFactory += sessionFactory;
@@ -42,7 +42,7 @@ namespace core
             if (args.SocketError == SocketError.Success)
             {
                 Session session = _sessionFactory.Invoke();
-                session.init(args.AcceptSocket);
+                session.Start(args.AcceptSocket);
                 session.OnConnected(args.AcceptSocket.RemoteEndPoint);
             }
             else

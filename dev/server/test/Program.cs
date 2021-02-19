@@ -50,7 +50,7 @@ namespace test
             // Port 번호
             IPEndPoint endPoint = new IPEndPoint(ipAddr, 7777);
 
-            _listener.init(endPoint, () => new GameSession());
+            _listener.Listen(endPoint, () => new GameSession());
             Console.WriteLine("Listening...");
 
             while (true) ;
