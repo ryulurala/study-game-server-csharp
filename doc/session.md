@@ -65,7 +65,7 @@ abstract public class Session
     public abstract void OnSend(int numOfBytes);
     public abstract void OnDisconnected(EndPoint endPoint);
 
-    public void init(Socket socket)
+    public void Start(Socket socket)
     {
         _socket = socket;
 
