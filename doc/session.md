@@ -1,46 +1,94 @@
 ---
 title: "Session"
 category: Game-Server
-tags: [c#, socket, server, session]
+tags: [c#, socket, server, session, Receive, Send]
 date: "2021-02-18"
 ---
 
 ## Session
 
-1. Send()
-2. Receive()
-3. Disconnect()
+- `init()`
 
-### Receive
+  > 비동기 완료 콜백 등록  
+  > 받을 데이터 버퍼 지정  
+  > RegisterReceive()
+
+- `Send()`
+  - `Public Send()`
+    > 보낼 메시지를 Queue에 계속 Enqueue()  
+    > 더 이상 보류된 것이 없을 때 RegisterSend()
+  - `RegisterSend()`
+    > 보낼 메시지 큐를 비워 한꺼번에 Send() 예약  
+    > 비동기 Send() 이므로 예약만 하고 리턴  
+    > 만약, 보류 없으면 OnCompletedSend() 호출
+  - `OnCompletedSend()`
+    > 실질적으로 Send()가 완료됨.  
+    > 만약, 보낼 메시지가 큐에 남아있으면 다시 RegisterSend()
+- `Receive()`
+  - `RegisterRecv()`
+    > ReceiveAsync()  
+    > 만약 보류 없이 바로 보내지면 OnRecvCompleted
+  - `OnCompletedRecv()`
+    > 메시지를 다 받음.  
+    > 다음 턴을 위해 다시 RegisterRecv()
+- `Disconnect()`
+
+  > 두 번 이상 Disconnect() 는 오류이므로, 다른 Thread가 동시에 접근해  
+  > Disconnect()를 두 번하는 것을 방지하기 위해 Compare and Swap 이용
+
+- `abstract()`
+  > 다른 Session이 상속받아 구현할 함수
+  - `OnConnected()`
+    > 연결됐을 때 콜백 실행
+  - `OnRecv()`
+    > 메시지 수신될 떄, 콜백 실행
+  - `OnSend()`
+    > 메시지 송신 완료할 때, 콜백 실행
+  - `OnDisconnected()`
+    > 연결이 끊겼을 때 콜백 실행
 
 ```cs
-public class Session
+abstract public class Session
 {
-    Socket _socket;   // Client Socket
+    Socket _socket;     // 클라이언트 소켓(대리자)
     int _disconnected = 0;
+    Queue<byte[]> _sendQueue = new Queue<byte[]>();   // 보낼 메시지를 모아서 보냄
+    SocketAsyncEventArgs _sendArgs = new SocketAsyncEventArgs();    // 재사용
+    SocketAsyncEventArgs _recvArgs = new SocketAsyncEventArgs();    // 재사용
+    List<ArraySegment<byte>> _pendingList = new List<ArraySegment<byte>>();
+    object _lock = new object();
+
+    // 다른 session이 구현할 함수
+    public abstract void OnConnected(EndPoint endPoint);
+    public abstract void OnRecv(ArraySegment<byte> buffer);
+    public abstract void OnSend(int numOfBytes);
+    public abstract void OnDisconnected(EndPoint endPoint);
 
     public void init(Socket socket)
     {
         _socket = socket;
 
-        SocketAsyncEventArgs recvArgs = new SocketAsyncEventArgs();
-
-        // 비동기 이벤트 콜백 등록
-        recvArgs.Completed += new EventHandler<SocketAsyncEventArgs>(OnRecvCompleted);
+        // 비동기 완료 콜백 등록
+        _recvArgs.Completed += new EventHandler<SocketAsyncEventArgs>(OnRecvCompleted);
+        _sendArgs.Completed += new EventHandler<SocketAsyncEventArgs>(OnSendCompleted);
 
         // argument buffer 설정
         // SetBuffer(buffer, offset, count)
-        recvArgs.SetBuffer(new byte[1024], 0, 1024);
+        _recvArgs.SetBuffer(new byte[1024], 0, 1024);
 
         // 등록(예약)
-        ResgisterRecv(recvArgs);
+        ResgisterRecv();
     }
-
     public void Send(byte[] sendBuff)
     {
-        _socket.Send(sendBuff);     // blocking
-    }
+        lock (_lock)
+        {
+            // 쓰레드 하나씩
+            _sendQueue.Enqueue(sendBuff);
 
+            if (_pendingList.Count == 0) RegisterSend();
+        }
+    }
     public void Disconnect()
     {
         // Disconnect를 두 번 하면 Error 발생하므로
@@ -49,6 +97,8 @@ public class Session
         // original value가 1일 경우 close() 불가
         if (Interlocked.Exchange(ref _disconnected, 1) == 1) return;
 
+        OnDisconnected(_socket.RemoteEndPoint);
+
         // 손님 보내기: Close()
         _socket.Shutdown(SocketShutdown.Both);   // 신뢰성(TCP)
         _socket.Close();
@@ -56,16 +106,56 @@ public class Session
 
     #region 네트워크 통신
     // 내부적이므로 region 설정
-    void ResgisterRecv(SocketAsyncEventArgs args)
+    void RegisterSend()
     {
-        bool pending = _socket.ReceiveAsync(args);
+        while (_sendQueue.Count > 0)
+        {
+            byte[] buff = _sendQueue.Dequeue();
+            _pendingList.Add(new ArraySegment<byte>(buff, 0, buff.Length));
+        }
+        _sendArgs.BufferList = _pendingList;
+
+        bool pending = _socket.SendAsync(_sendArgs);
+        if (pending == false)
+        {
+            OnSendCompleted(null, _sendArgs);
+        }
+    }
+    void OnSendCompleted(object sender, SocketAsyncEventArgs args)
+    {
+        lock (_lock)
+        {
+            if (args.BytesTransferred > 0 && args.SocketError == SocketError.Success)
+            {
+                try
+                {
+                    _sendArgs.BufferList = null;
+                    _pendingList.Clear();
+                    OnSend(_sendArgs.BytesTransferred);
+
+                    if (_sendQueue.Count > 0) RegisterSend();
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine($"OnSendCompleted Failed {e.ToString()}");
+                }
+            }
+            else
+            {
+                // TODO Disconnect
+                Disconnect();
+            }
+        }
+    }
+    void ResgisterRecv()
+    {
+        bool pending = _socket.ReceiveAsync(_recvArgs);
         if (!pending)
         {
             // 보류 없이 Receive() 성공
-            OnRecvCompleted(null, args);
+            OnRecvCompleted(null, _recvArgs);
         }
     }
-
     void OnRecvCompleted(object sender, SocketAsyncEventArgs args)
     {
         if (args.BytesTransferred > 0 && args.SocketError == SocketError.Success)
@@ -75,11 +165,10 @@ public class Session
             try
             {
                 // (buffer, offset=시작 위치, 받은 byte 수)
-                string recvData = Encoding.UTF8.GetString(args.Buffer, args.Offset, args.BytesTransferred);
-                Console.WriteLine($"[From Client] {recvData}");
+                OnRecv(new ArraySegment<byte>(args.Buffer, args.Offset, args.BytesTransferred));
 
                 // 다시 받을 준비
-                ResgisterRecv(args);
+                ResgisterRecv();
             }
             catch (Exception e)
             {
@@ -89,7 +178,6 @@ public class Session
         }
         else
         {
-            // TODO Disconnect
             Disconnect();
         }
     }
