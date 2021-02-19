@@ -27,5 +27,6 @@
 19. [Socket](/doc/socket.md)
 20. [Listener](/doc/listener.md)
 21. [Session](/doc/session.md)
+22. [Connector](/doc/connector.md)
 
 ---
