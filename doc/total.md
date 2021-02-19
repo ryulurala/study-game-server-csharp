@@ -2159,7 +2159,7 @@ public class Listener
     Socket _listenSocket;   // 서버의 소켓
     Action<Socket> _onAcceptHandler;  // Event Action
 
-    public void init(IPEndPoint endPoint, Action<Socket> onAcceptHandler)
+    public void Listen(IPEndPoint endPoint, Action<Socket> onAcceptHandler)
     {
         // 서버 소켓을 new, bind, event 연결
         _listenSocket = new Socket(endPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
@@ -2232,7 +2232,7 @@ public class Listener
     Socket _listenSocket;   // 서버의 소켓
     Func<Session> _sessionFactory;  // Session을 생성하고 반환
 
-    public void init(IPEndPoint endPoint, Func<Session> sessionFactory)
+    public void Listen(IPEndPoint endPoint, Func<Session> sessionFactory)
     {
         // 서버 소켓을 new, bind, event 연결
         _listenSocket = new Socket(endPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
@@ -2353,7 +2353,7 @@ abstract public class Session
     public abstract void OnSend(int numOfBytes);
     public abstract void OnDisconnected(EndPoint endPoint);
 
-    public void init(Socket socket)
+    public void Start(Socket socket)
     {
         _socket = socket;
 
