@@ -14,6 +14,7 @@ date: "2021-02-18"
   > RegisterReceive()
 
 - `Send()`
+  > 한꺼번에 모아서 Send()
   - `Public Send()`
     > 보낼 메시지를 Queue에 계속 Enqueue()  
     > 더 이상 보류된 것이 없을 때 RegisterSend()
@@ -108,13 +109,20 @@ abstract public class Session
     // 내부적이므로 region 설정
     void RegisterSend()
     {
+        // Send()에서 lock을 걸기 때문에 따로 lock 걸 필요 X
         while (_sendQueue.Count > 0)
         {
             byte[] buff = _sendQueue.Dequeue();
+
+            // ArraySegment는 C#에서 구조체로, Stack을 이용 - 효율적
             _pendingList.Add(new ArraySegment<byte>(buff, 0, buff.Length));
         }
+
+        // 예약된 목록들
         _sendArgs.BufferList = _pendingList;
 
+        // 여러 번 SendAsync() 호출 시에 부하가 심하다.
+        // 예약 확인하며 _sendArgs가 이벤트로 발생시켜 실행한다.
         bool pending = _socket.SendAsync(_sendArgs);
         if (pending == false)
         {
@@ -123,17 +131,25 @@ abstract public class Session
     }
     void OnSendCompleted(object sender, SocketAsyncEventArgs args)
     {
+        // init() 에서 들어오는 쓰레드가 있으니 Lock을 건다.
         lock (_lock)
         {
+            // 상대방이 연결을 끊으면 가끔 0 byte로 온다.
             if (args.BytesTransferred > 0 && args.SocketError == SocketError.Success)
             {
                 try
                 {
+                    // 다른 쓰레드 Enqueue 했던 것을 처리
+                    // pendingList를 가지고 있을 필요 X
                     _sendArgs.BufferList = null;
                     _pendingList.Clear();
                     OnSend(_sendArgs.BytesTransferred);
 
-                    if (_sendQueue.Count > 0) RegisterSend();
+                    if (_sendQueue.Count > 0)
+                    {
+                        // Queue에 남아있으면 그 쓰레드가 Enqueue한 것을 내가 처리
+                        RegisterSend();
+                    }
                 }
                 catch (Exception e)
                 {
