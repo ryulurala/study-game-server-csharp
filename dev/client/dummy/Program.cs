@@ -12,12 +12,11 @@ namespace dummy
         {
             Console.WriteLine($"Onconnected: {endPoint}");
 
-            byte[] sendBuff = Encoding.UTF8.GetBytes("Welcome to MMORPG Server !");
-            Send(sendBuff);
-
-            Thread.Sleep(1000);
-
-            Disconnect();
+            for (int i = 0; i < 5; i++)
+            {
+                byte[] sendBuff = Encoding.UTF8.GetBytes($"Hello World! {i}");
+                Send(sendBuff);
+            }
         }
 
         public override void OnDisconnected(EndPoint endPoint)
@@ -28,7 +27,7 @@ namespace dummy
         public override void OnRecv(ArraySegment<byte> buffer)
         {
             string recvData = Encoding.UTF8.GetString(buffer.Array, buffer.Offset, buffer.Count);
-            Console.WriteLine($"[From Client]\n {recvData}");
+            Console.WriteLine($"[From Server]\n {recvData}");
         }
 
         public override void OnSend(int numOfBytes)
@@ -40,7 +39,19 @@ namespace dummy
     {
         static void Main(string[] args)
         {
-            Console.WriteLine("Hello World!");
+            // IP 주소
+            string host = Dns.GetHostName();
+            IPHostEntry ipHost = Dns.GetHostEntry(host);
+            IPAddress ipAddr = ipHost.AddressList[0];
+
+            // Port 번호
+            IPEndPoint endPoint = new IPEndPoint(ipAddr, 7777);
+
+            Connector connector = new Connector();
+
+            connector.Connect(endPoint, () => new GameSession());
+
+            while (true) ;
         }
     }
 }
