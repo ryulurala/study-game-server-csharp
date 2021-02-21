@@ -7,7 +7,40 @@ using System.Threading;
 
 namespace core
 {
-    abstract public class Session
+    public abstract class PacketSession : Session
+    {
+        public static readonly int HeadSize = 2;
+        public sealed override int OnRecv(ArraySegment<byte> buffer)
+        {
+            // [size(2)][packetId(2)][...][size(2)][packetId(2)][...]
+            int processLen = 0;
+
+            // Parsing packet
+            while (true)
+            {
+                // 최소 헤더 파싱 여부
+                if (buffer.Count < HeadSize)
+                    break;
+
+                // Packet이 완전체로 도착했는지 확인
+                ushort dataSize = BitConverter.ToUInt16(buffer.Array, buffer.Offset);
+                if (buffer.Count < dataSize)
+                    break;
+
+                // Packet 조립
+                // [size(2)][packetId(2)][...] 넘겨줌.
+                OnRecvPacket(new ArraySegment<byte>(buffer.Array, buffer.Offset, dataSize));
+
+                processLen += dataSize;
+                buffer = new ArraySegment<byte>(buffer.Array, buffer.Offset + dataSize, buffer.Count - dataSize);
+            }
+
+            return processLen;
+        }
+        public abstract void OnRecvPacket(ArraySegment<byte> buffer);
+    }
+
+    public abstract class Session
     {
         Socket _socket;     // 클라이언트 소켓(대리자)
         int _disconnected = 0;
