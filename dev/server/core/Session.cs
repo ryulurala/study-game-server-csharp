@@ -11,6 +11,8 @@ namespace core
     {
         Socket _socket;     // 클라이언트 소켓(대리자)
         int _disconnected = 0;
+
+        RecvBuffer _recvBuffer = new RecvBuffer(1024);
         Queue<byte[]> _sendQueue = new Queue<byte[]>();
         SocketAsyncEventArgs _sendArgs = new SocketAsyncEventArgs();    // 재사용
         SocketAsyncEventArgs _recvArgs = new SocketAsyncEventArgs();    // 재사용
@@ -18,7 +20,7 @@ namespace core
         object _lock = new object();
 
         public abstract void OnConnected(EndPoint endPoint);
-        public abstract void OnRecv(ArraySegment<byte> buffer);
+        public abstract int OnRecv(ArraySegment<byte> buffer);
         public abstract void OnSend(int numOfBytes);
         public abstract void OnDisconnected(EndPoint endPoint);
 
@@ -28,8 +30,6 @@ namespace core
 
             _recvArgs.Completed += new EventHandler<SocketAsyncEventArgs>(OnRecvCompleted);
             _sendArgs.Completed += new EventHandler<SocketAsyncEventArgs>(OnSendCompleted);
-
-            _recvArgs.SetBuffer(new byte[1024], 0, 1024);
 
             ResgisterRecv();
         }
@@ -99,8 +99,12 @@ namespace core
         }
         void ResgisterRecv()
         {
+            _recvBuffer.Clean();
+            ArraySegment<byte> segment = _recvBuffer.WriteSegment;
+            _recvArgs.SetBuffer(segment.Array, segment.Offset, segment.Count);
+
             bool pending = _socket.ReceiveAsync(_recvArgs);
-            if (!pending)
+            if (pending == false)
             {
                 OnRecvCompleted(null, _recvArgs);
             }
@@ -112,8 +116,27 @@ namespace core
                 // 성공적으로 Data를 가져옴
                 try
                 {
-                    OnRecv(new ArraySegment<byte>(args.Buffer, args.Offset, args.BytesTransferred));
+                    // Write 커서 이동
+                    if (_recvBuffer.OnWrite(args.BytesTransferred) == false)
+                    {
+                        Disconnect();
+                        return;
+                    }
 
+                    // 컨텐츠단으로 데이터를 넘겨줌
+                    int processLen = OnRecv(_recvBuffer.ReadSegment);
+                    if (processLen < 0 || _recvBuffer.DataSize < processLen)
+                    {
+                        Disconnect();
+                        return;
+                    }
+
+                    // Read 커서 이동
+                    if (_recvBuffer.OnRead(processLen) == false)
+                    {
+                        Disconnect();
+                        return;
+                    }
 
                     ResgisterRecv();
                 }
