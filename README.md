@@ -29,5 +29,6 @@
 21. [Session](/doc/session.md)
 22. [Connector](/doc/connector.md)
 23. [TCP vs UDP](/doc/tcp-udp.md)
+24. [Receive Buffer, Send Buffer](/doc/buffer.md)
 
 ---
