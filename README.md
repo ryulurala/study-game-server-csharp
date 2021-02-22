@@ -31,5 +31,6 @@
 23. [TCP vs UDP](/doc/tcp-udp.md)
 24. [Receive Buffer, Send Buffer](/doc/buffer.md)
 25. [Packet Session](/doc/packet-session.md)
+26. [UTF-8 vs UTF-16](/doc/utf-8-vs-utf-16.md)
 
 ---
