@@ -33,5 +33,6 @@
 25. [Packet Session](/doc/packet-session.md)
 26. [UTF-8 vs UTF-16](/doc/utf-8-vs-utf-16.md)
 27. [Serialization](/doc/serialization.md)
+28. [Packet Generator](/doc/packet-generator.md)
 
 ---
