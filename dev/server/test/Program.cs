@@ -10,6 +10,8 @@ namespace test
     class Program
     {
         static Listener _listener = new Listener();
+        public static GameRoom Room = new GameRoom();
+
         static void Main(string[] args)
         {
             // IP 주소
@@ -20,7 +22,7 @@ namespace test
             // Port 번호
             IPEndPoint endPoint = new IPEndPoint(ipAddr, 7777);
 
-            _listener.Listen(endPoint, () => new ClientSession());
+            _listener.Listen(endPoint, () => SessionManager.Instance.Generate());
             Console.WriteLine("Listening...");
 
             while (true) ;

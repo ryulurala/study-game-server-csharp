@@ -13,17 +13,14 @@ using core;
 class PacketManager
 {{
     #region Singleton
-    static PacketManager _instance;
-    public static PacketManager Instance
-    {{
-        get
-        {{
-            if (_instance == null)
-                _instance = new PacketManager();
-            return _instance;
-        }}
-    }}
+    static PacketManager _instance = new PacketManager();
+    public static PacketManager Instance{{ get {{ return _instance; }} }}
     #endregion
+
+    PacketManager()
+    {{
+        Register();
+    }}
 
     Dictionary<ushort, Action<PacketSession, ArraySegment<byte>>> _onRecv = new Dictionary<ushort, Action<PacketSession, ArraySegment<byte>>>();
     Dictionary<ushort, Action<PacketSession, IPacket>> _handler = new Dictionary<ushort, Action<PacketSession, IPacket>>();
@@ -61,7 +58,7 @@ class PacketManager
 ";
         // {0} 패킷 이름
         public static string managerRegistFormat =
-@"        _onRecv.Add((ushort)PacketId.{0}, MakePacket<{0}>);
+@"      _onRecv.Add((ushort)PacketId.{0}, MakePacket<{0}>);
         _handler.Add((ushort)PacketId.{0}, PacketHandler.{0}Handler);";
 
 
@@ -103,6 +100,7 @@ interface IPacket
 class {0} : IPacket
 {{
     {1}
+
     public ushort Protocol {{ get {{ return (ushort)PacketId.{0}; }} }}
 
     public void Read(ArraySegment<byte> seg)
@@ -130,7 +128,7 @@ class {0} : IPacket
 
         {3}
 
-        success &= BitConverter.TryWriteBytes(span, count);     // 원본
+        success &= BitConverter.TryWriteBytes(span, count);
 
         if (success == false)
             return null;
@@ -190,7 +188,7 @@ count += sizeof({1});";
         public static string readStringFormat =
 @"ushort {0}Len = BitConverter.ToUInt16(span.Slice(count, span.Length - count));
 count += sizeof(ushort);
-Encoding.Unicode.GetString(span.Slice(count, {0}Len));
+this.{0} = Encoding.Unicode.GetString(span.Slice(count, {0}Len));
 count += {0}Len;";
 
         // {0} 리스트 이름 [대문자]

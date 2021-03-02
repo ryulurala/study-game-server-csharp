@@ -134,7 +134,6 @@ namespace core
                         _pendingList.Clear();
                         OnSend(_sendArgs.BytesTransferred);
 
-
                         if (_sendQueue.Count > 0) RegisterSend();
                     }
                     catch (Exception e)
