@@ -30,7 +30,6 @@ namespace core
                 // Packet 조립
                 // [size(2)][packetId(2)][...] 넘겨줌.
                 OnRecvPacket(new ArraySegment<byte>(buffer.Array, buffer.Offset, dataSize));
-
                 processLen += dataSize;
                 buffer = new ArraySegment<byte>(buffer.Array, buffer.Offset + dataSize, buffer.Count - dataSize);
             }

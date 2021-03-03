@@ -15,8 +15,7 @@ namespace test
         public override void OnConnected(EndPoint endPoint)
         {
             Console.WriteLine($"Onconnected: {endPoint}");
-
-            Program.Room.Enter(this);
+            Program.Room.Push(() => Program.Room.Enter(this));
         }
         public override void OnRecvPacket(ArraySegment<byte> buffer)
         {
@@ -27,9 +26,11 @@ namespace test
             SessionManager.Instance.Remove(this);
             if (Room != null)
             {
-                Room.Leave(this);
+                GameRoom room = Room;
+                room.Push(() => room.Leave(this));
                 Room = null;
             }
+
             Console.WriteLine($"OnDisconnected: {endPoint}");
         }
         public override void OnSend(int numOfBytes)

@@ -22,7 +22,6 @@ namespace dummy
         public override void OnRecvPacket(ArraySegment<byte> buffer)
         {
             PacketManager.Instance.OnRecvPacket(this, buffer);
-            // Console.WriteLine($"[From Server] {recvData}");
         }
 
         public override void OnSend(int numOfBytes)
