@@ -8,10 +8,21 @@ namespace test
     {
         List<ClientSession> _sessions = new List<ClientSession>();
         JobQueue _jobQueue = new JobQueue();
+        // 보낼 메시지 임시 저장
+        List<ArraySegment<byte>> _pendingList = new List<ArraySegment<byte>>();
 
         public void Push(Action job)
         {
             _jobQueue.Push(job);
+        }
+
+        public void Flush()
+        {
+            foreach (ClientSession s in _sessions)
+                s.Send(_pendingList);
+
+            Console.WriteLine($"Flushed {_pendingList.Count} items");
+            _pendingList.Clear();
         }
 
         public void BroadCast(ClientSession session, string chat)
@@ -21,8 +32,12 @@ namespace test
             packet.chat = $"{chat} I am {packet.playerId}";
             ArraySegment<byte> segment = packet.Write();
 
-            foreach (ClientSession s in _sessions)
-                s.Send(segment);
+            // Reserve Send
+            _pendingList.Add(segment);
+
+            // N^2
+            // foreach (ClientSession s in _sessions)
+            //     s.Send(segment);
         }
 
         public void Enter(ClientSession session)

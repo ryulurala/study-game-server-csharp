@@ -14,6 +14,7 @@ namespace core
         {
             // [size(2)][packetId(2)][...][size(2)][packetId(2)][...]
             int processLen = 0;
+            int _packetCount = 0;
 
             // Parsing packet
             while (true)
@@ -30,9 +31,13 @@ namespace core
                 // Packet 조립
                 // [size(2)][packetId(2)][...] 넘겨줌.
                 OnRecvPacket(new ArraySegment<byte>(buffer.Array, buffer.Offset, dataSize));
+                _packetCount++;
                 processLen += dataSize;
                 buffer = new ArraySegment<byte>(buffer.Array, buffer.Offset + dataSize, buffer.Count - dataSize);
             }
+
+            if (_packetCount > 1)
+                Console.WriteLine($"Packet Count: {_packetCount}");
 
             return processLen;
         }
@@ -44,7 +49,7 @@ namespace core
         Socket _socket;     // 클라이언트 소켓(대리자)
         int _disconnected = 0;
 
-        RecvBuffer _recvBuffer = new RecvBuffer(1024);
+        RecvBuffer _recvBuffer = new RecvBuffer(65535);
         Queue<ArraySegment<byte>> _sendQueue = new Queue<ArraySegment<byte>>();
         SocketAsyncEventArgs _sendArgs = new SocketAsyncEventArgs();    // 재사용
         SocketAsyncEventArgs _recvArgs = new SocketAsyncEventArgs();    // 재사용
@@ -81,7 +86,22 @@ namespace core
                 // 쓰레드 하나씩
                 _sendQueue.Enqueue(sendBuff);
 
-                if (_pendingList.Count == 0) RegisterSend();
+                if (_pendingList.Count == 0)
+                    RegisterSend();
+            }
+        }
+        public void Send(List<ArraySegment<byte>> sendBuffList)
+        {
+            if (sendBuffList.Count == 0)
+                return;
+
+            lock (_lock)
+            {
+                foreach (ArraySegment<byte> sendBuff in sendBuffList)
+                    _sendQueue.Enqueue(sendBuff);
+
+                if (_pendingList.Count == 0)
+                    RegisterSend();
             }
         }
         public void Disconnect()

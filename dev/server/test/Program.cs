@@ -25,7 +25,11 @@ namespace test
             _listener.Listen(endPoint, () => SessionManager.Instance.Generate());
             Console.WriteLine("Listening...");
 
-            while (true) ;
+            while (true)
+            {
+                Room.Push(() => Room.Flush());
+                Thread.Sleep(250);
+            }
         }
     }
 }
