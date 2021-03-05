@@ -12,6 +12,14 @@ namespace test
         static Listener _listener = new Listener();
         public static GameRoom Room = new GameRoom();
 
+        static void FlushRoom()
+        {
+            Room.Push(() => Room.Flush());
+
+            // 250ms 이후에 다시 실행: 예약
+            JobTimer.Instance.Push(FlushRoom, 250);
+        }
+
         static void Main(string[] args)
         {
             // IP 주소
@@ -25,10 +33,23 @@ namespace test
             _listener.Listen(endPoint, () => SessionManager.Instance.Generate());
             Console.WriteLine("Listening...");
 
+            // int roomTick = 0;
+            // while (true)
+            // {
+            //     int now = System.Environment.TickCount;
+            //     if (roomTick < now)
+            //     {
+            //         Room.Push(() => Room.Flush());
+            //         roomTick = now + 250;
+            //     }
+            // }
+
+            // FlushRoom();
+            JobTimer.Instance.Push(FlushRoom, 250);
+
             while (true)
             {
-                Room.Push(() => Room.Flush());
-                Thread.Sleep(250);
+                JobTimer.Instance.Flush();
             }
         }
     }
