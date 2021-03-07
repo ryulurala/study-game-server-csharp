@@ -6,7 +6,7 @@ class PacketManager
 {
     #region Singleton
     static PacketManager _instance = new PacketManager();
-    public static PacketManager Instance { get { return _instance; } }
+    public static PacketManager Instance{ get { return _instance; } }
     #endregion
 
     PacketManager()
@@ -19,7 +19,7 @@ class PacketManager
 
     public void Register()
     {
-        _onRecv.Add((ushort)PacketId.C_Chat, MakePacket<C_Chat>);
+      _onRecv.Add((ushort)PacketId.C_Chat, MakePacket<C_Chat>);
         _handler.Add((ushort)PacketId.C_Chat, PacketHandler.C_ChatHandler);
 
     }

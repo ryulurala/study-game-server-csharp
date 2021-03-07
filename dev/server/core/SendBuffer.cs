@@ -46,7 +46,7 @@ namespace core
         public ArraySegment<byte> Open(int reserveSize)
         {
             if (reserveSize > FreeSize)
-                return null;
+                return default(ArraySegment<byte>);
 
             return new ArraySegment<byte>(_buffer, _usedSize, reserveSize);
         }
