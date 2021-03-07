@@ -1,0 +1,32 @@
+﻿using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+public class PacketQueue
+{
+    // Singleton
+    public static PacketQueue Instance { get; } = new PacketQueue();
+    Queue<IPacket> _packetQueue = new Queue<IPacket>();
+    object _lock = new object();    // for. multi-thread
+
+    // Sub-Thread가 밀어 넣기
+    public void Push(IPacket packet)
+    {
+        lock (_lock)
+        {
+            _packetQueue.Enqueue(packet);
+        }
+    }
+
+    // Main-Thread가 Pop 해서 사용
+    public IPacket Pop()
+    {
+        lock (_lock)
+        {
+            if (_packetQueue.Count == 0)
+                return null;
+
+            return _packetQueue.Dequeue();
+        }
+    }
+}

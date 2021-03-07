@@ -12,7 +12,6 @@ class PacketHandler
         S_Chat chatPacket = packet as S_Chat;
         ServerSession serverSession = session as ServerSession;
 
-        if (chatPacket.playerId == 1)
-            Debug.Log($"message: {chatPacket.chat}");
+        Debug.Log($"message: {chatPacket.chat}");
     }
 }

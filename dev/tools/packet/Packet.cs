@@ -10,7 +10,7 @@ public enum PacketId
 	
 }
 
-interface IPacket
+public interface IPacket
 {
     ushort Protocol { get; }
     void Read(ArraySegment<byte> segment);
@@ -27,7 +27,6 @@ class C_Chat : IPacket
     public void Read(ArraySegment<byte> seg)
     {
         ushort count = 0;
-
         
         count += sizeof(ushort);
         count += sizeof(ushort);
@@ -69,7 +68,6 @@ class S_Chat : IPacket
     public void Read(ArraySegment<byte> seg)
     {
         ushort count = 0;
-
         
         count += sizeof(ushort);
         count += sizeof(ushort);
