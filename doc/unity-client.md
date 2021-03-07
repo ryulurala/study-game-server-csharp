@@ -243,8 +243,210 @@ foreach ({0} {1} in this.{1}s)
 
 ### Packet Queue
 
-- Unity의 Main-Thread외에 다른 Thread가 Unity의 Component로 실행 불가한 정책
-- Unity에서 Multi-thread 환경은 가능
-  - Unity Component(Main thread) + Packet Queue(Background thread) 로 구성
+- Unity의 Main-Thread외에 다른 Thread가 Unity의 Component로 실행 불가 정책이 있다.
+  > Sub-Thread가 Unity의 GameObject를 건들거나 Monobehaviour를 건들 수 없다.
+- Packet Queue를 이용한 Multi-thread 환경 구축
+
+  - Push()
+    > Background thread가 사용  
+    > Only. Packet을 Deserailizing하고 밀어넣는 작업
+  - Pop()
+    > Unity Main-thread가 사용  
+    > Queue에서 빼내어 값으로 사용
+
+- Unity의 Main thread
+
+  1. Packet Queue에서 Pop
+  2. Packet Handling
+
+- Background thread
+  1. Packet을 조립(Deserialize)
+  2. Packet Queue에 Push
+
+#### `PacketQueue.cs`
+
+```cs
+// Monobehaviour 상속 X
+public class PacketQueue
+{
+    // Singleton으로 사용
+    public static PacketQueue Instance { get; } = new PacketQueue();
+    // Packet을 담고있는 Queue
+    Queue<IPacket> _packetQueue = new Queue<IPacket>();
+    // for. multi-thread
+    object _lock = new object();
+
+    // Sub-Thread가 밀어 넣기
+    public void Push(IPacket packet)
+    {
+        lock (_lock)
+        {
+            // background thread가 push
+            _packetQueue.Enqueue(packet);
+        }
+    }
+
+    // Main-Thread가 Pop 해서 사용
+    public IPacket Pop()
+    {
+        // lock??
+        lock (_lock)
+        {
+            if (_packetQueue.Count == 0)
+                return null;
+
+            // main thread가 pop
+            return _packetQueue.Dequeue();
+        }
+    }
+}
+```
+
+#### `ClientPacketManager.cs` 수정
+
+- Unity-Client와 Dummy-Client를 구분하여 Handling
+  - Dummy-Client는 HandlePacket()을 바로 실행
+  - Unity-Client는 Main-Thread(= Update())에서 Packet Queue에서 Pop -> HandlePacket()을 실행
+
+```cs
+class PacketManager
+{
+    #region Singleton
+    static PacketManager _instance = new PacketManager();
+    public static PacketManager Instance{ get { return _instance; } }
+    #endregion
+
+    // 생성할 때 Register() 자동으로 하도록
+    PacketManager()
+    {
+        Register();
+    }
+
+    // return IPacket; 하는 Action
+    Dictionary<ushort, Func<PacketSession, ArraySegment<byte>, IPacket>> _makeFunc = new Dictionary<ushort, Func<PacketSession, ArraySegment<byte>, IPacket>>();
+    // Handling call-back func를 담는 Action
+    Dictionary<ushort, Action<PacketSession, IPacket>> _handler = new Dictionary<ushort, Action<PacketSession, IPacket>>();
+
+    public void Register()
+    {
+        _makeFunc.Add((ushort)PacketId.S_Chat, MakePacket<S_Chat>);
+        _handler.Add((ushort)PacketId.S_Chat, PacketHandler.S_ChatHandler);
+    }
+
+    // Parameter로 Option을 받음(= onRecvCallback)
+    public void OnRecvPacket(PacketSession session, ArraySegment<byte> buffer, Action<PacketSession, IPacket> onRecvCallback = null)
+    {
+        ushort count = 0;
+
+        // PacketId, PacketSize Parsing
+        ushort size = BitConverter.ToUInt16(buffer.Array, buffer.Offset);
+        count += 2;
+        ushort id = BitConverter.ToUInt16(buffer.Array, buffer.Offset + count);
+        count += 2;
+
+        Func<PacketSession, ArraySegment<byte>, IPacket> func = null;
+
+        // 조립할 수 있는 Packet인지
+        if (_makeFunc.TryGetValue(id, out func))
+        {
+            // Handling
+            IPacket packet = func.Invoke(session, buffer);
+            // Option(= onRecvCallback) 유무에 따라서
+            if (onRecvCallback == null)
+                HandlePacket(session, packet);  // Dummy-Clinet Handling
+            else
+                onRecvCallback.Invoke(session, packet); // Unity-Client Handling
+        }
+
+    }
+
+    T MakePacket<T>(PacketSession session, ArraySegment<byte> buffer) where T : IPacket, new()
+    {
+        T pkt = new T();
+        pkt.Read(buffer);   // Deserialize
+
+        return pkt;
+    }
+
+    public void HandlePacket(PacketSession session, IPacket packet)
+    {
+        // Packet Handling
+        // Unity-Client는 Update()에서 Handling
+        Action<PacketSession, IPacket> action = null;
+        if (_handler.TryGetValue(packet.Protocol, out action))
+            action.Invoke(session, packet);
+    }
+}
+
+```
+
+#### `ServerSession.cs` 수정
+
+- Call-back function으로 Packet Queue에 Push()
+
+```cs
+public override void OnRecvPacket(ArraySegment<byte> buffer)
+{
+    // 옵션으로 Packet Queue에 Push
+    // Handling은 Unity의 Main-Thread에서 진행
+    PacketManager.Instance.OnRecvPacket(this, buffer, (s, p) => PacketQueue.Instance.Push(p));
+}
+```
+
+#### `NetworkManager.cs`
+
+- Packet Handling 실행
+- Send Packet
+  > Coroutine으로 일정 주기로 Send
+
+```cs
+public class NetworkManager : MonoBehaviour
+{
+    // Unity는 Session 1개(= Only. Main-thread)
+    ServerSession _session = new ServerSession();
+
+    void Start()
+    {
+        // IP 주소
+        string host = Dns.GetHostName();
+        IPHostEntry ipHost = Dns.GetHostEntry(host);
+        IPAddress ipAddr = ipHost.AddressList[0];
+
+        // Port 번호
+        IPEndPoint endPoint = new IPEndPoint(ipAddr, 7777);
+
+        Connector connector = new Connector();
+
+        connector.Connect(endPoint, () => _session);
+
+        StartCoroutine(CoSendPacket());
+    }
+
+    void Update()
+    {
+        // Packet Queue에서 Pop --> Packet Handling
+        IPacket packet = PacketQueue.Instance.Pop();
+        if (packet != null)
+            PacketManager.Instance.HandlePacket(_session, packet);
+    }
+
+    IEnumerator CoSendPacket()
+    {
+        while (true)
+        {
+            yield return new WaitForSeconds(3f);
+            // 3초마다 실행
+
+            C_Chat chatPacket = new C_Chat();
+            chatPacket.chat = "Hello Unity !";
+            ArraySegment<byte> segment = chatPacket.Write();
+
+            // SendQueue에 넣기
+            // Background-thread가 Send
+            _session.Send(segment);
+        }
+    }
+}
+```
 
 ---
