@@ -10,7 +10,7 @@ namespace tools
 using System.Collections.Generic;
 using core;
 
-class PacketManager
+public class PacketManager
 {{
     #region Singleton
     static PacketManager _instance = new PacketManager();
@@ -108,7 +108,7 @@ public interface IPacket
         // {3} 멤버 변수 Write
         public static string packetFormat =
 @"
-class {0} : IPacket
+public class {0} : IPacket
 {{
     {1}
 
@@ -164,10 +164,8 @@ public class {0}
         {3}
     }}
 
-    public bool Write(Span<byte> span, ref ushort count)
+    public bool Write(ArraySegment<byte> seg, ref ushort count)
     {{
-        bool success = true;
-
         {4}
 
         return true;
@@ -205,7 +203,7 @@ count += sizeof(ushort);
 for (int i = 0; i < {1}Len; i++)
 {{
     {0} {1} = new {0}();
-    {1}.Read(span, ref count);
+    {1}.Read(seg, ref count);
     {1}s.Add({1});
 }}";
 

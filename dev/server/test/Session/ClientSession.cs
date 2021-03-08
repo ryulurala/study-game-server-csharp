@@ -12,6 +12,11 @@ namespace test
         public int SessionId { get; set; }
         public GameRoom Room { get; set; }
 
+        // 원래는 분리
+        public float PosX { get; set; }
+        public float PosY { get; set; }
+        public float PosZ { get; set; }
+
         public override void OnConnected(EndPoint endPoint)
         {
             Console.WriteLine($"Onconnected: {endPoint}");

@@ -9,7 +9,10 @@ using UnityEngine;
 public class NetworkManager : MonoBehaviour
 {
     ServerSession _session = new ServerSession();
-
+    public void Send(ArraySegment<byte> sendBuff)
+    {
+        _session.Send(sendBuff);
+    }
     void Start()
     {
         // IP 주소
@@ -24,27 +27,13 @@ public class NetworkManager : MonoBehaviour
 
         connector.Connect(endPoint, () => _session);
 
-        StartCoroutine(CoSendPacket());
+
     }
 
     void Update()
     {
-        IPacket packet = PacketQueue.Instance.Pop();
-        if (packet != null)
-            PacketManager.Instance.HandlePacket(_session, packet);
-    }
-
-    IEnumerator CoSendPacket()
-    {
-        while (true)
-        {
-            yield return new WaitForSeconds(3f);
-
-            C_Chat chatPacket = new C_Chat();
-            chatPacket.chat = "Hello Unity !";
-            ArraySegment<byte> segment = chatPacket.Write();
-
-            _session.Send(segment);
-        }
+        List<IPacket> list = PacketQueue.Instance.PopAll();
+        foreach (IPacket pkt in list)
+            PacketManager.Instance.HandlePacket(_session, pkt);
     }
 }

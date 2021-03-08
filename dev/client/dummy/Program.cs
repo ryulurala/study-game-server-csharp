@@ -20,7 +20,7 @@ namespace dummy
 
             Connector connector = new Connector();
 
-            connector.Connect(endPoint, () => SessionManager.Instance.Generate(), 10);
+            connector.Connect(endPoint, () => SessionManager.Instance.Generate(), 50);
 
             while (true)
             {
