@@ -1,7 +1,7 @@
 ---
 title: "Unity Client"
 category: Game-Server
-tags: [unity, packet-queue]
+tags: [unity, packet-queue, contents, position]
 date: "2021-03-08"
 ---
 
@@ -289,7 +289,6 @@ public class PacketQueue
     // Main-Thread가 Pop 해서 사용
     public IPacket Pop()
     {
-        // lock??
         lock (_lock)
         {
             if (_packetQueue.Count == 0)
@@ -298,6 +297,20 @@ public class PacketQueue
             // main thread가 pop
             return _packetQueue.Dequeue();
         }
+    }
+
+    // Main-Thread가 한 번에 PopAll하여 한꺼번에 처리
+    public List<IPacket> PopAll()
+    {
+        List<IPacket> list = new List<IPacket>();
+
+        lock (_lock)
+        {
+            while (_packetQueue.Count > 0)
+                list.Add(_packetQueue.Dequeue());
+        }
+
+        return list;
     }
 }
 ```
@@ -448,5 +461,492 @@ public class NetworkManager : MonoBehaviour
     }
 }
 ```
+
+### Contents: Position 동기화
+
+- Dummy Client에서 Position을 전달하면 Server를 통해 Unity에서 Rendering
+- Game Packet 정의는 채팅과 같다.
+
+  > 접속, 움직임 패킷 모두 모든 플레이어에게 똑같이 알린다.(= Broadcast)
+
+#### Contents 구현 순서
+
+1. PDL.xml 작성(= Packet 정의)
+   - `S_BroadcastEnterGame`
+     > 새로운 플레이어가 접속했다는 것을 모두에게 알리는 패킷
+   - `C_LeaveGame`
+     > Client가 Server에게 나간다고 알리는 패킷
+   - `S_BroadcastLeaveGame`
+     > Server가 어떤 Client가 나갔다고 모두에게 알리는 패킷
+   - `S_PlayerList`
+     > 새로운 플레이어에게 현재 접속해있는 Player의 List를 전달하는 패킷
+   - `C_Move`
+     > Client가 Server에게 해당 좌표로 움직였다고 알리는 패킷
+   - `S_BroadcastMove`
+     > 어떤 Client가 움직였다고 모두에게 알리는 패킷
+2. Server Contents
+   - `GameRoom.cs` 작성
+     > Server's Contents code  
+     > 역할에 따라 각각 분리하여 Script를 작성하고 ClientSession을 갖고 있으면 효율적.
+   - `PacketHandler.cs` 작성
+     > Leave와 Move에 대해서 Handling Script 작성  
+     > 접속은 이미 Client Session에서 OnConnected()로 실행
+3. Unity Client
+   - `NetworkManager.cs` 작성
+     > IP, Port를 Bind, Connect  
+     > Packet Receive
+   - `PlayerManager.cs` 작성
+     > Player, MyPlayer Component를 갖고있는 GameObject를 생성
+   - `Player.cs`, `MyPlayer.cs` 작성
+     > Send C_Move Packet
+4. Dummy Client
+   - `SessionManager.cs`
+     > Random Position Packet을 전송
+
+#### `PDL.xml` 작성
+
+1. `S_BroadcastEnterGame`
+
+   > 새로운 플레이어가 접속했다는 것을 모두에게 알리는 패킷
+
+   - `int playerId`
+     > 어떤 Player가 접속했는지 다른 플레이어들도 캐싱 가능하도록 Server에서 전송
+   - `float posX, posY, posZ`
+     > 해당 Player가 접속하자마자 Server에서 Default Player 위치를 전송
+
+2. `C_LeaveGame`
+   > Client가 Server에게 나간다고 알리는 패킷
+   - `int playerId`
+     > Client가 자신이 나간다고 Server에게 자신의 Id 전송
+3. `S_BroadcastLeaveGame`
+   > Server가 어떤 Client가 나갔다고 모두에게 알리는 패킷
+   - `int playerId`
+     > 어떤 Player가 나갔는지 모두에게 Id를 알리고 PlayerList를 Update하라고 전송
+4. `S_PlayerList`
+   > 새로운 플레이어에게 현재 접속해있는 Player의 List를 전달하는 패킷
+   - `List player`
+     > 모든 Player가 담긴 List  
+     > Server가 캐싱하고 있는 Client Session들을 담아서 전송
+     - `bool isSelf`
+       > PlayerList에 담긴 Player가 자신인지 유무  
+       > 자신의 PlayerId를 알 수 있음  
+       > 다른 방법으로는 Player 상태 정보를 먼저 보내고 CLient가 Id를 캐싱하도록 함.
+     - `int playerId`
+       > PlayerList에 담긴 playerId
+     - `float posX, posY, posZ`
+       > 모든 Player들의 위치 정보
+5. `C_Move`
+   > Client가 Server에게 해당 좌표로 움직였다고 알리는 패킷  
+   > Id가 Client Session에 저장돼 있으므로 playerId를 전송할 필요 [X]
+   - `float posX, posY, posZ`
+     > 움직였다고 Server에게 좌표 전송
+6. `S_BroadcastMove`
+
+   > 어떤 Client가 움직였다고 모두에게 알리는 패킷
+
+   - `int playerId`
+     > 어떤 Player가 움직였는지 모두에게 Id 전송
+   - `float posX, posY, posZ`
+     > 어떤 Player가 어떤 좌표로 움직였는지 모두에게 위치 좌표 전송
+
+- PDL.xml
+
+  ```xml
+  <?xml version="1.0" encoding="utf-8" ?>
+
+  <PDL>
+    <packet name="S_BroadcastEnterGame">    // 1)
+      <int name="playerId"/>
+      <float name="posX"/>
+      <float name="posY"/>
+      <float name="posZ"/>
+    </packet>
+    <packet name="C_LeaveGame">   // 2)
+      <int name="playerId"/>
+    </packet>
+    <packet name="S_BroadcastLeaveGame">  // 3)
+      <int name="playerId"/>
+    </packet>
+    <packet name="S_PlayerList">    // 4)
+      <list name="player">
+        <bool name="isSelf"/>
+        <int name="playerId"/>
+        <float name="posX"/>
+        <float name="posY"/>
+        <float name="posZ"/>
+      </list>
+    </packet>
+    <packet name="C_Move">    // 5)
+      <float name="posX"/>
+      <float name="posY"/>
+      <float name="posZ"/>
+    </packet>
+    <packet name="S_BroadcastMove"> // 6)
+      <int name="playerId"/>
+      <float name="posX"/>
+      <float name="posY"/>
+      <float name="posZ"/>
+    </packet>
+  </PDL>
+  ```
+
+#### Server Contents 구현
+
+- Server's Contents code
+
+  - 역할에 따라 각각 분리하여 Script를 작성하고 ClientSession을 갖고 있으면 효율적이다.
+
+- GameRoom.cs
+
+  - `Enter()`
+    1. Player를 추가(= Client Session 캐싱)
+    2. 처음 접속한 Player에게 모든 Player List 전송
+    3. 모든 Player에게 처음 접속한 Player 정보를 전송
+  - `Leave()`
+    1. 나간다는 Player 제거
+    2. 모두에게 해당 Player 나갔다고 알림
+  - `Move()`
+    1. 받은 패킷으로 갖고있는 Session의 좌표 변경
+    2. 모두에게 좌표 변경하라고 알림
+
+  ```cs
+  class GameRoom : IJobQueue
+  {
+      List<ClientSession> _sessions = new List<ClientSession>();
+      JobQueue _jobQueue = new JobQueue();
+      // 보낼 메시지 임시 저장
+      List<ArraySegment<byte>> _pendingList = new List<ArraySegment<byte>>();
+
+      public void Push(Action job)
+      {
+          // JobQueue에 밀어 넣기
+          _jobQueue.Push(job);
+      }
+
+      public void Flush()
+      {
+          // 팬딩 목록을 보내는 작업
+          foreach (ClientSession s in _sessions)
+              s.Send(_pendingList);
+
+          Console.WriteLine($"Flushed {_pendingList.Count} items");
+          _pendingList.Clear();
+      }
+
+      // Segment를 받아서 모두에게 뿌림
+      public void Broadcast(ArraySegment<byte> segment)
+      {
+          // Reserve Send
+          _pendingList.Add(segment);
+      }
+
+      public void Enter(ClientSession session)
+      {
+          // 플레이어 추가
+          _sessions.Add(session);
+          session.Room = this;
+
+          // 신입한테 모든 플레이어 목록 전송
+          S_PlayerList players = new S_PlayerList();
+          foreach (ClientSession s in _sessions)
+          {
+              players.players.Add(new S_PlayerList.Player()
+              {
+                  isSelf = (s == session),
+                  playerId = s.SessionId,
+                  posX = s.PosX,
+                  posY = s.PosY,
+                  posZ = s.PosZ,
+              });
+          }
+          session.Send(players.Write());  // 해당 Player에게 전송
+
+          // 신입 입장을 모두에게 알림
+          S_BroadcastEnterGame enter = new S_BroadcastEnterGame();
+          enter.playerId = session.SessionId;
+          enter.posX = 0;
+          enter.posY = 0;
+          enter.posZ = 0;
+          Broadcast(enter.Write());
+      }
+
+      public void Leave(ClientSession session)
+      {
+          // 플레이어 제거
+          _sessions.Remove(session);
+
+          // 모두에게 알림
+          S_BroadcastLeaveGame leave = new S_BroadcastLeaveGame();
+          leave.playerId = session.SessionId;
+          Broadcast(leave.Write());
+      }
+
+      public void Move(ClientSession session, C_Move packet)
+      {
+          // 좌표 변경
+          session.PosX = packet.posX;
+          session.PosY = packet.posY;
+          session.PosZ = packet.posZ;
+
+          // 모두에게 알림
+          S_BroadcastMove move = new S_BroadcastMove();
+          move.playerId = session.SessionId;
+          move.posX = session.PosX;
+          move.posY = session.PosY;
+          move.posZ = session.PosZ;
+          Broadcast(move.Write());
+      }
+  }
+  ```
+
+- PacketHandler.cs
+
+  > Client's Packet Handling
+
+  - 다른 Player의 Leave, Move Handling
+
+  ```cs
+  class PacketHandler
+  {
+      public static void C_LeaveGameHandler(PacketSession session, IPacket packet)
+      {
+          ClientSession clientSession = session as ClientSession;
+
+          if (clientSession.Room == null)
+              return;
+
+          GameRoom room = clientSession.Room;
+          // Leave Handling
+          room.Push(() => room.Leave(clientSession));
+      }
+
+      public static void C_MoveHandler(PacketSession session, IPacket packet)
+      {
+          C_Move movePacket = packet as C_Move;
+          ClientSession clientSession = session as ClientSession;
+
+          if (clientSession.Room == null)
+              return;
+
+          GameRoom room = clientSession.Room;
+          // Move Handling
+          room.Push(() => room.Move(clientSession, movePacket));
+      }
+  }
+  ```
+
+#### Unity Client 구현
+
+- NetworkManager.cs 작성
+
+  > `IP`, `Port`를 `Bind`, `Connect`  
+  > Packet `Receive`
+
+  ```cs
+  public class NetworkManager : MonoBehaviour
+  {
+      // Unity's Session
+      ServerSession _session = new ServerSession();
+      public void Send(ArraySegment<byte> sendBuff)
+      {
+          _session.Send(sendBuff);
+      }
+
+      void Start()
+      {
+          // IP 주소
+          string host = Dns.GetHostName();
+          IPHostEntry ipHost = Dns.GetHostEntry(host);
+          IPAddress ipAddr = ipHost.AddressList[0];
+
+          // Port 번호
+          IPEndPoint endPoint = new IPEndPoint(ipAddr, 7777);
+
+          Connector connector = new Connector();
+
+          connector.Connect(endPoint, () => _session);
+      }
+
+      void Update()
+      {
+          // 1 tick에 PacketQueue에 있는 모든 Packet을 처리
+          List<IPacket> list = PacketQueue.Instance.PopAll();
+          foreach (IPacket pkt in list)
+              PacketManager.Instance.HandlePacket(_session, pkt);
+      }
+  }
+  ```
+
+- PlayerManager.cs 작성
+
+  > Player, MyPlayer Component를 갖고있는 GameObject를 생성  
+  > 수신 받은 Player에 관한 Packet을 다룸.
+
+  ```cs
+  public class PlayerManager
+  {
+      // Singleton
+      public static PlayerManager Instance { get; } = new PlayerManager();
+      MyPlayer _myPlayer;
+      Dictionary<int, Player> _players = new Dictionary<int, Player>();
+
+      // 처음에 내가 들어와서 Server에게 받은 PlayerList Packet으로 _players 갱신
+      public void Add(S_PlayerList packet)
+      {
+          // Resource load
+          Object obj = Resources.Load("Player");
+
+          foreach (S_PlayerList.Player p in packet.players)
+          {
+              // PlayerList Packet을 받고 Update
+              // Instantiate
+              GameObject go = Object.Instantiate(obj) as GameObject;
+
+              if (p.isSelf)
+              {
+                  // for. 자신
+                  MyPlayer myPlayer = go.AddComponent<MyPlayer>();
+                  myPlayer.PlayerId = p.playerId;
+                  myPlayer.transform.position = new Vector3(p.posX, p.posY, p.posZ);
+
+                  // 내 _myPlayer로 참조
+                  _myPlayer = myPlayer;
+              }
+              else
+              {
+                  // 그 외 다른 Players
+                  Player player = go.AddComponent<Player>();
+                  player.PlayerId = p.playerId;
+                  player.transform.position = new Vector3(p.posX, p.posY, p.posZ);
+
+                  // _players에 추가
+                  _players.Add(p.playerId, player);
+              }
+          }
+      }
+
+      public void Move(S_BroadcastMove pkt)
+      {
+          if (_myPlayer.PlayerId == pkt.playerId)
+          {
+              // 내가 움직일 때
+              _myPlayer.transform.position = new Vector3(pkt.posX, pkt.posY, pkt.posZ);
+          }
+          else
+          {
+              // 그 외 다른 Players가 움직일 때
+              Player player = null;
+              if (_players.TryGetValue(pkt.playerId, out player))
+              {
+                  player.transform.position = new Vector3(pkt.posX, pkt.posY, pkt.posZ);
+              }
+          }
+      }
+
+      // 다른 Player가 들어왔다는 Packet
+      public void EnterGame(S_BroadcastEnterGame pkt)
+      {
+          // 처음 자신에게 Broadcast에 대해서 Skip
+          if (_myPlayer.PlayerId == pkt.playerId)
+              return;
+
+          // Resources load, Instantiate
+          Object obj = Resources.Load("Player");
+          GameObject go = Object.Instantiate(obj) as GameObject;
+
+          // Player 추가
+          Player player = go.AddComponent<Player>();
+          player.transform.position = new Vector3(pkt.posX, pkt.posY, pkt.posZ);
+          _players.Add(pkt.playerId, player);
+      }
+
+      public void LeaveGame(S_BroadcastLeaveGame pkt)
+      {
+          if (_myPlayer.PlayerId == pkt.playerId)
+          {
+              // 본인 Object 삭제
+              GameObject.Destroy(_myPlayer.gameObject);
+              _myPlayer = null;
+          }
+          else
+          {
+              // 다른 Player 삭제
+              Player player = null;
+              if (_players.TryGetValue(pkt.playerId, out player))
+              {
+                  GameObject.Destroy(player.gameObject);
+                  _players.Remove(pkt.playerId);
+              }
+          }
+      }
+  }
+  ```
+
+- Player.cs, MyPlayer.cs 작성
+
+  > Send C_Move Packet
+
+  ```cs
+  public class Player : MonoBehaviour
+  {
+      public int PlayerId { get; set; }
+  }
+  ```
+
+  ```cs
+  public class MyPlayer : Player
+  {
+      NetworkManager _networkManager;
+
+      void Start()
+      {
+          StartCoroutine(CoSendPacket());
+          _networkManager = GameObject.Find("NetworkManager").GetComponent<NetworkManager>();
+      }
+
+      IEnumerator CoSendPacket()
+      {
+          while (true)
+          {
+              yield return new WaitForSeconds(3f);
+
+              // 3초마다 C_Move Packet 전송
+              C_Move movePacket = new C_Move();
+              movePacket.posX = UnityEngine.Random.Range(-50, 50);
+              movePacket.posY = 1f;
+              movePacket.posZ = UnityEngine.Random.Range(-50, 50);
+
+              _networkManager.Send(movePacket.Write());
+          }
+      }
+  }
+  ```
+
+#### Dummy Client 구현
+
+- SessionManager.cs
+
+  > Random Position Packet을 전송
+
+  ```cs
+  Random _rand = new Random();
+
+  public void SendForEach()
+  {
+      lock (_lock)
+      {
+          foreach (ServerSession session in _sessions)
+          {
+              // Dummy로 Move Packet(= Random position) 전송
+              C_Move movePacket = new C_Move();
+              movePacket.posX = _rand.Next(-50, 50);
+              movePacket.posY = 1;
+              movePacket.posZ = _rand.Next(-50, 50);
+
+              session.Send(movePacket.Write());
+          }
+      }
+  }
+  ```
 
 ---
