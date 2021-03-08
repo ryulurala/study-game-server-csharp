@@ -37,5 +37,6 @@
 29. [Chat Test](/doc/chat-test.md)
 30. [Job, Task Queue](/doc/job-queue.md)
 31. [Send pending packet & Job timer](/doc/job-timer.md)
+32. [Unity Client](/doc/unity-client.md)
 
 ---
