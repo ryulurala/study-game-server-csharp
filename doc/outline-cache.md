@@ -15,7 +15,7 @@ date: "2021-02-08"
 
 ### Locality(지역성)
 
-1. `Tempolal Locality` : 시간 - 최근 접근한 것이 또 접근할 확률이 높다.
+1. `Temporal Locality` : 시간 - 최근 접근한 것이 또 접근할 확률이 높다.
 2. `Spacial Locality` : 공간 - 접근한 것의 근처에 접근할 확률이 높다.
 
 ### `Spacial Locality` 예제
