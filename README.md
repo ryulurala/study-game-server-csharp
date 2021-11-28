@@ -1,4 +1,4 @@
-# mmo-server_cs
+# study-mmo-game-server
 
 [Studying "MMO-Game-Server" by Inf-Learn](https://inf.run/MwaK)
 
