@@ -1,6 +1,6 @@
-# study-mmo-game-server
+# study-game-server-csharp
 
-[Studying "MMO-Game-Server" by Inf-Learn](https://inf.run/MwaK)
+[Studying "Game-Server-csharp" by Inf-Learn](https://inf.run/MwaK)
 
 ## Table of contents
 
